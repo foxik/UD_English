@@ -38,9 +38,13 @@ while (defined ($_ = <STDIN>) || length $sentence) {
 my %sentence_prefixes;
 foreach my $sentence (keys %sentences) {
   foreach my $len (1..length $sentence) {
-    $sentence_prefixes{substr $sentence, 0, $len} = 1;
+    $sentence_prefixes{substr($sentence, 0, $len)} = 1;
   }
 }
+
+# Prepare marks for reconstructed spaces
+# Value -1 means do not know, 0 no space, 1 space
+my @conllu_spaces = (-1) x @conllu;
 
 # Read input plain text
 my $paragraph = "";
@@ -49,13 +53,17 @@ while (defined ($_ = <>) || length $paragraph) {
   if (/^$/) {
     # Locate all sentences present in the paragraph
     for (my $i = 0; $i < length $paragraph; $i++) {
-      next if substr $paragraph, $i, 1 =~ /\s/;
+      next if substr($paragraph, $i, 1) =~ /\s/;
       my $sentence = "";
       for (my $j = $i; $j < length $paragraph; $j++) {
-        next if substr $paragraph, $j, 1 =~ /\s/;
+        next if substr($paragraph, $j, 1) =~ /\s/;
         $sentence .= substr $paragraph, $j, 1;
         last if not exists $sentence_prefixes{$sentence};
-        print "$sentence\n" if exists $sentences{$sentence};
+
+        if (exists $sentences{$sentence}) {
+          # Fill spaces in all CoNLL-U occurrences of the found sentence
+          # TODO
+        }
       }
     }
 
@@ -65,5 +73,17 @@ while (defined ($_ = <>) || length $paragraph) {
   }
 }
 
-
 # Write output CoNLL-U
+for (my $i = 0; $i < @conllu; $i++) {
+  my @parts = @{$conllu[$i]};
+
+  if (@parts) {
+    $parts[1] =~ s/\(/-LRB-/g && $parts[2] =~ s/\(/-lrb-/g;
+    $parts[1] =~ s/\)/-RRB-/g && $parts[2] =~ s/\)/-rrb-/g;
+    warn "Not found token $parts[1] number $i" if $conllu_spaces[$i] == -1;
+    $parts[9] = "SpaceAfter=No" . ($parts[9] eq "_" ? "" : "|$parts[9]") if !$conllu_spaces[$i];
+    print join("\t", @parts) . "\n";
+  } else {
+    print "\n";
+  }
+}
