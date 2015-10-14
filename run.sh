@@ -1,3 +1,5 @@
 #!/bin/sh
 
-cat *.conllu | perl merge.pl eng_web_plain/*.txt
+for conllu in *.conllu; do
+  perl merge.pl eng_web_plain/*.txt <$conllu >$conllu.merged
+done
